@@ -1,11 +1,10 @@
 import json
-import logging
 from sqlalchemy import func, asc, or_
 from .base_context import BaseContext
 from app.utils import Logger, templates
 from app.models import User, Key
 
-logger = Logger("YSContext", level=logging.DEBUG)
+logger = Logger("YSContext")
 
 class YSContext(BaseContext):
     def __init__(self, update):
@@ -44,22 +43,11 @@ class YSContext(BaseContext):
         logger.debug(keys)
         return self.get_keyboard([key.text_data for key in keys])
 
-    def get_inline_keyboard(self, **kwargs):
-        query = Key.query
+    def get_inline_keyboard(self, actions : list):
+        keys = Key.query.filter(
+            func.json_unquote(func.json_extract(Key.callback_data, '$.action')).in_(actions)
+        ).order_by(asc(Key.order_position)).all()
 
-        if "actions" in kwargs:
-            query = query.filter(
-                func.json_unquote(func.json_extract(Key.callback_data, '$.action')).in_(kwargs["actions"]),
-            )
-        if "ids" in kwargs:
-            query = query.filter(
-                or_ (
-                    func.json_contains_path(Key.callback_data, 'one', '$.id') == 0,
-                    func.json_unquote(func.json_extract(Key.callback_data, '$.id')).in_(kwargs["ids"])
-                )
-            )
-
-        keys = query.order_by(asc(Key.order_position)).all()
         logger.debug(keys)
 
         text_data, callback_data = [], []
@@ -85,12 +73,33 @@ class YSContext(BaseContext):
         else:
             self.send_message(text, reply_markup = self.get_inline_keyboard(actions=["select_order"]))
 
-    def get_order(self, message_id, act_id : str):
-        logger.log_function_call("YSContext.get_order")
-        text = templates.get("bot", "get_order")
+    def get_support(self):
+        logger.log_function_call("YSContext.get_support")
+        text = templates.get("bot", "get_support",
+                             telegram_username = templates.get("vars", "support_username"))
+
+        self.send_message(text)
+
+    def get_info(self):
+        logger.log_function_call("YSContext.get_info")
+        text = templates.get("bot", "get_info",
+                             telegram_username = templates.get("vars", "support_username"))
+
+        self.send_message(text)
+
+    def set_order(self, message_id):
+        logger.log_function_call("YSContext.set_order")
+        text = templates.get("bot", "set_order")
 
         self.edit_message_text(message_id, text, reply_markup =
-                               self.get_inline_keyboard(actions=["select_qty", "back_to_product"], ids=[str(act_id)]))
+        self.get_inline_keyboard(actions=["select_qty", "back_to_asset"]))
+
+    def select_asset(self, message_id):
+        logger.log_function_call("YSContext.select_asset")
+        text = templates.get("bot", "select_asset")
+
+        self.edit_message_text(message_id, text, reply_markup
+        = self.get_inline_keyboard(actions=["select_asset", "back_to_product"]))
 
     def handle(self):
         """Обрабатывает команду пользователя.
@@ -128,9 +137,9 @@ class YSContext(BaseContext):
             case "Товар | Product":
                 self.get_product()
             case "Поддержка | Support":
-                pass
+                self.get_support()
             case "Гарантия/Правила | Warranty/Rules":
-                pass
+                self.get_info()
 
         logger.info(f"Успешный ответ на сообщение [\"/{text}\"] пользователя [\"{self.user_id}\"].")
         return True
@@ -147,13 +156,14 @@ class YSContext(BaseContext):
         query.answer()
 
         message_id = query.message.message_id
-        json_data = json.loads(str(query.data))
+        cb_data = query.data
+        json_data = json.loads(cb_data)
 
         match json_data["action"]:
             case "select_order":
-                self.get_order(message_id, json_data["id"])
-            case "select_qty":
-                pass
+                self.select_asset(message_id)
+            case "select_asset":
+                self.set_order(message_id)
             case "back_to_product":
                 self.get_product(message_id)
             case _:

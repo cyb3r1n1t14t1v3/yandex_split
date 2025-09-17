@@ -13,8 +13,6 @@ class APIMethod(Enum):
     DELETE_MESSAGE = 1
     REPLY_TO_MESSAGE = 2
     EDIT_MESSAGE_TEXT = 3
-    CREATE_GENERAL_KEYBOARD = 4
-    CREATE_INLINE_KEYBOARD = 5
 
 class BaseContext:
     def __init__(self, update):
@@ -117,7 +115,7 @@ class BaseContext:
     def _generate_keyboard(text_data: list[str], callback_data: list[str] = None) -> ReplyKeyboardMarkup or InlineKeyboardMarkup:
         """Генерирует клавиатуру отталкиваясь от длины текста и количества кнопок в строке"""
         general_keyboard_max_line_length = 32
-        inline_keyboard_max_line_length = 8
+        inline_keyboard_max_line_length = 6
         max_key_qty = 5
         keyboard = []
         i = 0
