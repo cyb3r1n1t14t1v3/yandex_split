@@ -1,3 +1,3 @@
-from .command_context import CommandContext
+from .bot_context import YSContext
 
-__all__ = ["CommandContext"]
+__all__ = ["YSContext"]
