@@ -63,6 +63,18 @@
   "vars" : {
     "support_username" : "Trust_Cart_Support"
   },
+  "keyboard" :
+  {
+    "general" : [
+      "Товар",
+      "Поддержка",
+      "Гарантия/Правила"
+    ],
+    "inline" : {
+      "back_to_asset" : "Назад",
+      "back_to_product" : "Назад"
+    }
+  },
   "log" : {
 
   }
