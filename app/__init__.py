@@ -5,6 +5,7 @@ from telegram.ext import Dispatcher
 from .config import Config
 from .routes import webhook_bp
 from .utils import Logger
+from .utils import keyboard
 import requests
 
 db = SQLAlchemy()
@@ -30,9 +31,12 @@ def create_app():
 
     db.init_app(app)
 
-    from .models import User
+    from .models import User, Product
     with app.app_context():
         db.create_all()
+
+        keyboard.update_keyboard_config(Product)
+        logger.info("Клавиатурный конфиг успешно обновлен")
 
     # Initialize Telegram bot
     bot = Bot(token=app.config['TELEGRAM_TOKEN'])

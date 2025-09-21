@@ -1,0 +1,236 @@
+{
+  "general" : [
+    ["Товар", "Поддержка"],
+    ["Гарантия/Правила"]
+  ],
+  "inline" : [
+    {
+      "text" : "Назад",
+      "callback_data" : {
+        "action" : "back_to_product"
+      },
+      "position" : {
+        "row" : -1,
+        "column" : -1
+      }
+    },
+    {
+      "text" : "Назад",
+      "callback_data" : {
+        "action" : "back_to_qty"
+      },
+      "position" : {
+        "row" : -1,
+        "column" : -1
+      }
+    },
+    {
+      "text" : "USDT",
+      "callback_data" : {
+        "action" : "select_asset",
+        "id" : "1"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "TON",
+      "callback_data" : {
+        "action" : "select_asset",
+        "id" : "2"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 2
+      }
+    },
+    {
+      "text" : "ETH",
+      "callback_data" : {
+        "action" : "select_asset",
+        "id" : "3"
+      },
+      "position" : {
+        "row" : 2,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "BTC",
+      "callback_data" : {
+        "action" : "select_asset",
+        "id" : "4"
+      },
+      "position" : {
+        "row" : 2,
+        "column" : 2
+      }
+    },
+    {
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "callback_data" : {
+        "action" : "select_order",
+        "id" : "1"
+      },
+      "addition_data" : {
+        "limit" : "",
+        "price" : ""
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "callback_data" : {
+        "action" : "select_order",
+        "id" : "2"
+      },
+      "addition_data" : {
+        "limit" : "",
+        "price" : ""
+      },
+      "position" : {
+        "row" : 2,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "callback_data" : {
+        "action" : "select_order",
+        "id" : "3"
+      },
+      "addition_data" : {
+        "limit" : "",
+        "price" : ""
+      },
+      "position" : {
+        "row" : 3,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "callback_data" : {
+        "action" : "select_order",
+        "id" : "4"
+      },
+      "addition_data" : {
+        "limit" : "",
+        "price" : ""
+      },
+      "position" : {
+        "row" : 4,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "callback_data" : {
+        "action" : "select_order",
+        "id" : "5"
+      },
+      "addition_data" : {
+        "limit" : "",
+        "price" : ""
+      },
+      "position" : {
+        "row" : 5,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "1",
+      "callback_data" : {
+        "action" : "select_qty",
+        "id" : "1"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "2",
+      "callback_data" : {
+        "action" : "select_qty",
+        "id" : "2"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 2
+      }
+    },
+    {
+      "text" : "3",
+      "callback_data" : {
+        "action" : "select_qty",
+        "id" : "3"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 3
+      }
+    },
+    {
+      "text" : "4",
+      "callback_data" : {
+        "action" : "select_qty",
+        "id" : "4"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 4
+      }
+    },
+    {
+      "text" : "5",
+      "callback_data" : {
+        "action" : "select_qty",
+        "id" : "5"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 5
+      }
+    },
+    {
+      "text" : "Оплатить",
+      "callback_data" : {
+        "action" : "select_order_action",
+        "id" : "1"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 1
+      }
+    },
+    {
+      "text" : "Отмена",
+      "callback_data" : {
+        "action" : "select_order_action",
+        "id" : "2"
+      },
+      "position" : {
+        "row" : 1,
+        "column" : 2
+      }
+    },
+    {
+      "text" : "Проверить оплату",
+      "callback_data" : {
+        "action" : "select_order_action",
+        "id" : "3"
+      },
+      "position" : {
+        "row" : 2,
+        "column" : 1
+      }
+    }
+
+  ]
+}

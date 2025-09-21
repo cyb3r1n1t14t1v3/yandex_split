@@ -13,3 +13,4 @@ class Config:
     MYSQL_USER = os.getenv("MYSQL_USER")
     MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD")
     LOGS_DIR_PATH= os.getenv("LOGS_DIR_PATH")
+    CRYPTO_BOT_TOKEN = os.getenv("CRYPTO_BOT_TOKEN")

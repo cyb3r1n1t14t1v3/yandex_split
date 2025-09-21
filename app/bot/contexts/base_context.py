@@ -1,3 +1,4 @@
+import json
 import logging
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.parsemode import ParseMode
@@ -25,7 +26,6 @@ class BaseContext:
         
         self._parse_mode = ParseMode.HTML
         self._disable_web_page_preview = True
-
 
     def __enter__(self):
         return self
@@ -106,41 +106,41 @@ class BaseContext:
         return self._execute(APIMethod.EDIT_MESSAGE_TEXT,
                              message_id=message_id, text=text, reply_markup=reply_markup)
 
-    def get_keyboard(self, text_data: list[str], callback_data: list[str] = None, to_generate = True) -> ReplyKeyboardMarkup or InlineKeyboardMarkup:
-        if to_generate:
-            return self._generate_keyboard(text_data, callback_data)
-
-
     @staticmethod
-    def _generate_keyboard(text_data: list[str], callback_data: list[str] = None) -> ReplyKeyboardMarkup or InlineKeyboardMarkup:
-        """Генерирует клавиатуру отталкиваясь от длины текста и количества кнопок в строке"""
-        general_keyboard_max_line_length = 32
-        inline_keyboard_max_line_length = 6
-        max_key_qty = 5
-        keyboard = []
-        i = 0
+    def get_keyboard(key_data:list[list] or list[dict]) -> ReplyKeyboardMarkup or InlineKeyboardMarkup:
+        if isinstance(key_data[0], list):
+            return ReplyKeyboardMarkup(
+                keyboard=key_data,
+                resize_keyboard=True,
+                one_time_keyboard=False
+            )
 
-        while i < len(text_data):
-            line = []
-            line_length = 0
-            for text in text_data[i:]:
-                if callback_data:
-                    line.append(InlineKeyboardButton(text, callback_data=callback_data[i]))
-                else:
-                    line.append(KeyboardButton(text))
-                line_length += len(text)
-                i += 1
-                if (line_length >= inline_keyboard_max_line_length if callback_data else
-                    line_length >= general_keyboard_max_line_length) or (len(line) >= max_key_qty):
-                    break
-            keyboard.append(line)
+        max_row_p = 0
+        max_row_n = 0
+        for key in key_data:
+            row = key["position"]["row"]
+            if row > max_row_p:
+                max_row_p = row
+            elif row < 0 and abs(row) > max_row_n:
+                max_row_n = abs(row)
 
-        return InlineKeyboardMarkup(
-            keyboard
-        ) if callback_data else ReplyKeyboardMarkup(
-            keyboard=keyboard,
-            resize_keyboard=True,
-            one_time_keyboard=False
-        )
+        keyboard = [[] for i in range(max_row_p)]
+        bottom_keys = [[] for i in range(max_row_n)]
+
+        for key in key_data:
+            row = key["position"]["row"]
+            column = key["position"]["column"]
+            inline_key = InlineKeyboardButton(key["text"], callback_data=json.dumps(key["callback_data"]))
+
+            if row < 0:
+                bottom_keys[abs(row) - 1].insert(abs(column) - 1, inline_key)
+                continue
+
+            keyboard[row - 1].insert(column - 1, inline_key)
+
+        for bottom_key in bottom_keys:
+            keyboard.append(bottom_key)
+
+        return InlineKeyboardMarkup(keyboard)
 
 __all__ = ['BaseContext']

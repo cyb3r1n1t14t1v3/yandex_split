@@ -1,6 +1,9 @@
 import json
 import string
 from pathlib import Path
+from . import Logger
+
+logger = Logger("Templates")
 
 class Templates:
     """Единый класс для работы с шаблонами из templates.json."""
@@ -18,6 +21,13 @@ class Templates:
                 elif isinstance(value, str):
                     self.templates[context][key] = string.Template(value)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_type is not None:
+            logger.error(f"Ошибка в Templates: {exc_type.__name__}: {exc_value}")
+
     def get(self, context, template_key, **kwargs):
         """Получает отформатированный шаблон.
 
@@ -30,7 +40,7 @@ class Templates:
             str: Форматированная строка.
 
         Raises:
-            KeyError: Если context или template_key отсутствуют.
+            KeyError: Если cont ext или template_key отсутствуют.
             ValueError: Если требуемые параметры отсутствуют.
         """
         if context not in self.templates:
@@ -39,6 +49,9 @@ class Templates:
             raise KeyError(f"Шаблон '{template_key}' не найден в контексте '{context}'")
 
         template = self.templates[context][template_key]
+
+        if isinstance(template, int):
+            return template
 
         try:
             return template.substitute(**kwargs)
