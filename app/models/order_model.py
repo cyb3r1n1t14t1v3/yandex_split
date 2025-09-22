@@ -5,13 +5,14 @@ from sqlalchemy import Enum as SQLAlchemyEnum, event
 class StatusType(Enum):
     PENDING = "pending"
     CANCELLED = "cancelled"
-    DELIVERED = "delivered"
+    PAID = "paid"
 
 class Order(Base):
     __tablename__ = 'orders'
     order_id = db.Column(INTEGER(unsigned=True), primary_key=True, nullable=False, autoincrement=True)
     user_id = db.Column(BIGINT(unsigned=True), db.ForeignKey('users.user_id'), nullable=False)
     product_id = db.Column(INTEGER(unsigned=True), db.ForeignKey('products.product_id'), nullable=False)
+    invoice_id = db.Column(BIGINT(unsigned=True), nullable=False, unique=True)
     quantity = db.Column(INTEGER(unsigned=True), default=1, server_default="1", nullable=False)
     order_date = db.Column(DATETIME(), nullable=False, server_default=db.func.now())
     total_price = db.Column(db.DECIMAL(10, 2), nullable=False, default=0.00, server_default="0.00")

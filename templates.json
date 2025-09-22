@@ -63,7 +63,7 @@
   "vars" : {
     "support_username" : "Trust_Cart_Support",
     "cache_ttl_minutes" : 5,
-    "auto_cancel_default_seconds" : 1800
+    "auto_cancel_default_seconds" : 60
   },
   "log" : {
 

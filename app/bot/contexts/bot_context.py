@@ -1,8 +1,8 @@
 import json
 import logging
 from .base_context import BaseContext
-from app.utils import Logger, CryptoBotAPI, templates, keyboard
-from app.models import User, Product, Order
+from app.utils import Logger, CryptoBotAPI, templates, keyboard, InvoiceManager
+from app.models import User, Product, Order, StatusType
 
 logger = Logger("YSContext")
 
@@ -44,12 +44,12 @@ class YSContext(BaseContext):
         logger.debug(keyboard.general)
         return self.get_keyboard(keyboard.general)
 
-    def get_inline_keyboard(self, actions : list):
+    def get_inline_keyboard(self, actions: list, urls: dict = None):
         keys = [key for key in keyboard.inline
                 if key["callback_data"]["action"] in actions]
 
         logger.debug(keys)
-        return self.get_keyboard(keys)
+        return self.get_keyboard(keys, urls)
 
     def start(self):
         logger.log_function_call("YSContext.start")
@@ -106,31 +106,75 @@ class YSContext(BaseContext):
         product = Product.query.get(int(product_id))
         if product is None:
             logger.error(f"Товар с идентификатором {product_id} не найден")
+            return None
+
+        self.cancel_order()
+
+        price_in_rub = product.price * int(quantity)
+        time_to_pay = str(round(int(templates.get("vars", "auto_cancel_default_seconds")) / 60))
+
+        price_in_asset = self.crypto_bot.convert_amount(price_in_rub, "RUB", type_of_asset)
+        new_invoice = self.crypto_bot.create_invoice(asset=type_of_asset, amount=price_in_asset)
 
         new_order = Order(
-            user = self._user,
-            product = product,
-            quantity = quantity,
+            user       = self._user,
+            product    = product,
+            quantity   = quantity,
+            invoice_id = new_invoice.invoice_id
         )
         new_order.save()
-        logger.info(f"Заказ #{new_order.order_id} успешно создан на общую сумму {new_order.total_price}р")
+        logger.info(f"Заказ #{new_order.order_id} успешно создан на общую сумму {price_in_rub}р")
 
-        price_in_asset = self.crypto_bot.convert_amount(product.price, "RUB", type_of_asset)
-        time_to_pay = str(round(int(templates.get("vars", "auto_cancel_default_seconds")) / 60))
         kwargs = {
-            "order_id" : new_order.order_id,
-            "acc_limit" : product.account_limit,
-            "quantity" : quantity,
-            "price_in_rub" : product.price,
-            "type_of_asset" : type_of_asset,
-            "price_in_asset" : price_in_asset,
-            "time_to_pay" : time_to_pay,
+            "order_id"          : new_order.order_id,
+            "acc_limit"         : product.account_limit,
+            "quantity"          : quantity,
+            "price_in_rub"      : price_in_rub,
+            "type_of_asset"     : type_of_asset,
+            "price_in_asset"    : round(price_in_asset, 2),
+            "time_to_pay"       : time_to_pay,
             "telegram_username" : templates.get("vars", "support_username")
         }
 
         text = templates.get("bot", "set_order", **kwargs)
         self.edit_message_text(message_id, text, reply_markup =
-        self.get_inline_keyboard(actions=["select_order_action"]))
+        self.get_inline_keyboard(actions=["select_order_action"], urls = { "1" : new_invoice.pay_url }))
+
+    @property
+    def past_order(self):
+        query = Order.query.order_by(Order.order_id.desc())
+        order = query.filter_by(user_id = self._user.user_id,
+                                status  = StatusType.PENDING).first()
+
+        return order if order else None
+
+    def cancel_order(self, message_id = None):
+        logger.log_function_call("YSContext.cancel_order")
+
+        past_order = self.past_order
+        if past_order:
+            past_order.status = StatusType.CANCELLED
+            past_order.commit()
+            self.crypto_bot.delete_invoice(past_order.invoice_id)
+            self.crypto_bot
+            logger.info(f"Заказ #{past_order.order_id} успешно отменен")
+
+        if message_id: self.delete_message(message_id)
+
+    def check_payment(self, message_id):
+        logger.log_function_call("YSContext.check_payment")
+
+        past_order = self.past_order
+        if past_order:
+            self.cancel_order(message_id)
+            return None
+
+        result = self.crypto_bot.check_invoice_paid(past_order.invoice_id)
+
+        if result:
+            logger.info("Оплата прошла успешно")
+        else:
+            logger.info("Оплата еще не пришла")
 
     def select_asset(self, message_id):
         logger.log_function_call("YSContext.select_asset")
@@ -180,7 +224,6 @@ class YSContext(BaseContext):
                 self.get_info()
             case _:
                 return False
-
 
         logger.info(f"Успешный ответ на сообщение [\"{text}\"] пользователя [\"{self.user_id}\"].")
         return True
@@ -232,6 +275,12 @@ class YSContext(BaseContext):
                 self.select_qty(message_id)
             case "back_to_asset":
                 self.select_asset(message_id)
+            case "select_order_action":
+                match json_data["id"]:
+                    case "2":
+                        self.cancel_order(message_id)
+                    case "3":
+                        self.check_payment(message_id)
             case _:
                 logger.warn(f"Неизвестный callback-метод [\"{query.data}\"].")
                 return False
