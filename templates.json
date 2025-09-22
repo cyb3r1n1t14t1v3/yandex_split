@@ -82,12 +82,27 @@
       "📞 https://t.me/${telegram_username}",
       "",
       "<b>Приятных покупок!</b>"
+    ],
+    "insufficient_quantity" : [
+      "┌─────────═━┈━═─────────┐",
+      "   ❌ Заказ не может быть выполнен",
+      "└─────────═━┈━═─────────┘",
+      "",
+      "⚠️ <b>Недостаточно товара на складе.</b>",
+      "Запрошенное количество: ${quantity} шт",
+      "Доступное количество: ${available_quantity} шт",
+      "",
+      "Попробуйте уменьшить количество или выберите другой товар.",
+      "Если у вас возникли вопросы, свяжитесь с поддержкой:",
+      "📞 https://t.me/${telegram_username}",
+      "",
+      "<b>Спасибо за понимание!</b>"
     ]
   },
   "vars" : {
     "support_username" : "Trust_Cart_Support",
     "cache_ttl_minutes" : 5,
-    "auto_cancel_default_seconds" : 5
+    "auto_cancel_default_seconds" : 1800
   },
   "log" : {
 

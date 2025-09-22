@@ -16,6 +16,7 @@ class YSContext(BaseContext):
                                        auto_cancel_default_seconds=templates.get("vars", "auto_cancel_default_seconds"))
         self.telegram_username = templates.get("vars", "support_username")
 
+
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is not None:
             logger.error(f"Ошибка в YSContext: {exc_type.__name__}: {exc_value}")
@@ -90,13 +91,46 @@ class YSContext(BaseContext):
         self.edit_message_text(message_id, text, reply_markup =
         self.get_inline_keyboard(actions=["select_qty", "back_to_product"]))
 
+    @property
+    def _choice(self):
+        choices = self._user.choice.split("/")[:-1]
+        check_index = lambda index: 0 <= index < len(choices)
+
+        product_id = int(choices[0].split("?")[1]) if check_index(0) else None
+        qty_id = int(choices[1].split("?")[1]) if check_index(1) else None
+        asset_id = int(choices[2].split("?")[1]) if check_index(2) else None
+
+        return product_id, qty_id, asset_id
+
+    def _check_product_qty(self, message_id):
+        logger.log_function_call("YSContext._check_product_qty")
+
+        choice = self._choice
+        product_id = choice[0]
+        selected_quantity = choice[1]
+        product = Product.query.get(product_id)
+        if not product: return False
+
+        product_qty = product.quantity
+
+        if selected_quantity > product_qty:
+            text = templates.get("bot", "insufficient_quantity",
+                                 quantity = selected_quantity,
+                                 available_quantity = product_qty,
+                                 telegram_username = self.telegram_username)
+
+            self.edit_message_text(message_id, text, reply_markup=
+            self.get_inline_keyboard(["back_to_qty"]))
+
+        return product_qty >= selected_quantity
+
     def set_order(self, message_id):
         logger.log_function_call("YSContext.set_order")
 
-        choices = self._user.choice.split("/")
-        product_id = choices[0].split("?")[1]
-        quantity = choices[1].split("?")[1]
-        asset_id = choices[2].split("?")[1]
+        choice = self._choice
+        product_id = choice[0]
+        quantity = choice[1]
+        asset_id = choice[2]
 
         type_of_asset = ""
         for key in keyboard.inline:
@@ -104,14 +138,14 @@ class YSContext(BaseContext):
                 key["callback_data"]["id"] == asset_id):
                 type_of_asset = key["text"]
 
-        product = Product.query.get(int(product_id))
+        product = Product.query.get(product_id)
         if product is None:
             logger.error(f"Товар с идентификатором {product_id} не найден")
             return None
 
         self.cancel_order()
 
-        price_in_rub = product.price * int(quantity)
+        price_in_rub = product.price * quantity
         time_to_pay = str(round(int(templates.get("vars", "auto_cancel_default_seconds")) / 60))
 
         price_in_asset = self.crypto_bot.convert_amount(price_in_rub, "RUB", type_of_asset)
@@ -153,6 +187,8 @@ class YSContext(BaseContext):
     def cancel_order(self):
         logger.log_function_call("YSContext.cancel_order")
 
+        self.check_payment()
+
         past_order = self.past_order
         if not past_order:
             return
@@ -176,7 +212,7 @@ class YSContext(BaseContext):
         past_order.status = StatusType.PAID
         past_order.commit()
         logger.info(f"Заказ #{past_order.order_id} успешно оплачен: "
-                    f"user_id[{past_order.user_id}] total_amount[{past_order.total_amount}]")
+                    f"user_id[{past_order.user_id}] total_amount[{past_order.total_price}]")
 
         self.edit_message_text(past_order.message_id, templates.get("bot", "successful_payment",
                                                          order_id=past_order.order_id,
@@ -188,9 +224,10 @@ class YSContext(BaseContext):
         result = self.crypto_bot.check_invoice_paid(33790001)
 
         if result:
-            self.successful_payment()
-            return
-        self.cancel_order()
+            return self.successful_payment()
+        elif result is None:
+            return self.cancel_order()
+        return result
 
     def select_asset(self, message_id):
         logger.log_function_call("YSContext.select_asset")
@@ -281,7 +318,8 @@ class YSContext(BaseContext):
                 self.select_qty(message_id)
             case "select_qty":
                 self.choice_update(2, choices, action, action_id)
-                self.select_asset(message_id)
+                if self._check_product_qty(message_id):
+                    self.select_asset(message_id)
             case "select_asset":
                 self.choice_update(3, choices, action, action_id)
                 self.set_order(message_id)
