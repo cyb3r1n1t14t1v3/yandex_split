@@ -107,7 +107,7 @@ class BaseContext:
                              message_id=message_id, text=text, reply_markup=reply_markup)
 
     @staticmethod
-    def get_keyboard(key_data: list[list] or list[dict], urls: dict = None) -> ReplyKeyboardMarkup or InlineKeyboardMarkup:
+    def get_keyboard(key_data:list[list] or list[dict]) -> ReplyKeyboardMarkup or InlineKeyboardMarkup:
         if isinstance(key_data[0], list):
             return ReplyKeyboardMarkup(
                 keyboard=key_data,
@@ -130,10 +130,7 @@ class BaseContext:
         for key in key_data:
             row = key["position"]["row"]
             column = key["position"]["column"]
-            if urls and key["callback_data"]["id"] in urls.keys():
-                inline_key = InlineKeyboardButton(key["text"], url=urls[key["callback_data"]["id"]])
-            else:
-                inline_key = InlineKeyboardButton(key["text"], callback_data=json.dumps(key["callback_data"]))
+            inline_key = InlineKeyboardButton(key["text"], callback_data=json.dumps(key["callback_data"]))
 
             if row < 0:
                 bottom_keys[abs(row) - 1].insert(abs(column) - 1, inline_key)

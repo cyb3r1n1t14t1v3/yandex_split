@@ -6,8 +6,9 @@ from dataclasses import dataclass
 import threading
 from ..config import Config
 from . import Logger
+import logging
 
-logger = Logger("CryptoBotAPI")
+logger = Logger("CryptoBotAPI", logging.DEBUG)
 
 @dataclass
 class ExchangeRate:
@@ -113,24 +114,31 @@ class CurrencyCache:
 class Invoice:
     """Класс для представления инвойса"""
     invoice_id: int
+    status: str
     hash: str
-    currency_type: Optional[str] = None
     asset: Optional[str] = None
     amount: Optional[float] = None
     pay_url: Optional[str] = None
-    bot_invoice_url: Optional[str] = None
-    mini_app_invoice_url: Optional[str] = None
-    web_app_invoice_url: Optional[str] = None
-    status: Optional[str] = None
-    created_at: Optional[str] = None
-    allow_comments: Optional[bool] = True
-    allow_anonymous: Optional[bool] = True
+    description: Optional[str] = None
+    created_at: Optional[datetime] = None
+    expiration_date: Optional[datetime] = None
+    paid_at: Optional[datetime] = None
+    paid_amount: Optional[float] = None
 
     # Добавьте другие поля по необходимости
 
     def __post_init__(self):
         if self.amount:
             self.amount = float(self.amount)
+        if self.paid_amount:
+            self.paid_amount = float(self.paid_amount)
+        if self.created_at and isinstance(self.created_at, str):
+            self.created_at = datetime.fromisoformat(self.created_at)
+        if self.expiration_date and isinstance(self.expiration_date, str):
+            self.expiration_date = datetime.fromisoformat(self.expiration_date)
+        if self.paid_at and isinstance(self.paid_at, str):
+            self.paid_at = datetime.fromisoformat(self.paid_at)
+
 
 class InvoiceManager:
     """Менеджер для отслеживания и отмены инвойсов по времени"""
@@ -301,10 +309,8 @@ class CryptoBotAPI:
                     timeout=10
                 )
 
-            data = response.json()
-            logger.debug(f"Ответ на запрос {method}: {data}")
-
             response.raise_for_status()
+            data = response.json()
 
             # Проверяем ответ API
             if data.get("ok"):
@@ -461,12 +467,6 @@ class CryptoBotAPI:
             from_currency = "USDT"
 
         rate = self.get_exchange_rate(from_currency, to_currency, force_refresh)
-
-        if not rate:
-            rate = self.get_exchange_rate(to_currency, from_currency, force_refresh)
-            if rate:
-                rate.rate = 1 / rate.rate
-
         if not rate:
             logger.error(f"Не удалось получить курс {from_currency}->{to_currency}")
             return None
@@ -614,9 +614,7 @@ class CryptoBotAPI:
         """Удаляет инвойс"""
         params = {"invoice_id": str(invoice_id)}
         result = self._execute("deleteInvoice", params)
-        logger.info(result)
         if result:
-            logger.info("123213213213123213123123123123")
             self.invoice_manager.remove_invoice(invoice_id)
         return bool(result)
 
