@@ -5,8 +5,9 @@ from telegram.ext import Dispatcher
 from .config import Config
 from .routes import webhook_bp
 from .utils import Logger
-from .utils import keyboard
+from .utils import TaskScheduler, keyboard, templates
 import requests
+import random
 
 db = SQLAlchemy()
 logger = Logger("App")
@@ -14,6 +15,7 @@ logger = Logger("App")
 def create_app():
     logger.debug("Создание приложения")
     app = Flask(__name__)
+    scheduler = TaskScheduler()
     app.config['TELEGRAM_TOKEN'] = Config.TELEGRAM_TOKEN
     app.config['WEBHOOK_URL'] = Config.WEBHOOK_URL
     app.config['SQLALCHEMY_DATABASE_URI'] \
@@ -35,8 +37,26 @@ def create_app():
     with app.app_context():
         db.create_all()
 
-        keyboard.update_keyboard_config(Product)
+        keyboard.update_inline_keyboard(Product)
         logger.info("Клавиатурный конфиг успешно обновлен")
+
+        def stock_auto_update():
+            with app.app_context():
+                products = Product.query.all()
+                random_products = templates.get("vars", "stock_auto_update_is_random_products")
+                random_qty = templates.get("vars", "stock_auto_update_range_qty")
+                max_qty = templates.get("vars", "stock_auto_update_max_qty")
+
+                for product in products:
+                    index = product.product_id - 1
+                    if product.quantity < max_qty[index]:
+                        product.quantity += 0 if random_products and random.getrandbits(1) else (
+                            random.randint(*random_qty[index]))
+
+                db.session.commit()
+
+        stock_auto_update_time = random.randint(*templates.get("vars", "stock_auto_update_range_seconds"))
+        scheduler.start_task(stock_auto_update, stock_auto_update_time, task_id="stock_auto_update")
 
     # Initialize Telegram bot
     bot = Bot(token=app.config['TELEGRAM_TOKEN'])

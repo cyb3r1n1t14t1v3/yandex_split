@@ -15,18 +15,11 @@ class Templates:
         # Преобразуем шаблоны в string.Template
         for context in self.templates:
             for key, value in self.templates[context].items():
-                if isinstance(value, list):
+                if isinstance(value, list) and isinstance(value[0], str):
                     # Для массивов (например, profile) объединяем в одну строку
                     self.templates[context][key] = string.Template("\n".join(value))
                 elif isinstance(value, str):
                     self.templates[context][key] = string.Template(value)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        if exc_type is not None:
-            logger.error(f"Ошибка в Templates: {exc_type.__name__}: {exc_value}")
 
     def get(self, context, template_key, **kwargs):
         """Получает отформатированный шаблон.
@@ -50,7 +43,7 @@ class Templates:
 
         template = self.templates[context][template_key]
 
-        if isinstance(template, int):
+        if not isinstance(template, string.Template):
             return template
 
         try:
