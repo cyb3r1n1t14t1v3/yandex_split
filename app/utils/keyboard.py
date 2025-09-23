@@ -18,13 +18,13 @@ class Keyboard:
                 product = product_model.query.get(int(key["callback_data"]["id"]))
                 limit = product.account_limit
                 price = product.price
+                quantity = product.quantity
 
                 key["text"] = key["text"].format(
                     limit_label = f"{limit: }",
-                    price_label = f"{price: }"
+                    price_label = f"{price: }",
+                    quantity_label = f"{quantity: }"
                 )
-                key["addition_data"]["limit"] = str(limit)
-                key["addition_data"]["price"] = str(price)
 
     def __enter__(self):
         return self

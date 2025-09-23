@@ -1,7 +1,7 @@
 import json
 import logging
 from .base_context import BaseContext
-from app.utils import Logger, CryptoBotAPI, templates, keyboard, InvoiceManager
+from app.utils import Logger, CryptoBotAPI, templates, keyboard
 from app.models import User, Product, Order, StatusType
 
 logger = Logger("YSContext")
@@ -14,6 +14,7 @@ class YSContext(BaseContext):
         self._create_user()
         self.crypto_bot = CryptoBotAPI(cache_ttl_minutes=templates.get("vars", "cache_ttl_minutes"),
                                        auto_cancel_default_seconds=templates.get("vars", "auto_cancel_default_seconds"))
+        self.telegram_username = templates.get("vars", "support_username")
 
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is not None:
@@ -54,7 +55,7 @@ class YSContext(BaseContext):
     def start(self):
         logger.log_function_call("YSContext.start")
         text = templates.get("bot", "start",
-                             telegram_username = templates.get("vars", "support_username"))
+                             telegram_username = self.telegram_username)
 
         self.send_message(text = text, reply_markup = self.general_keyboard)
 
@@ -70,14 +71,14 @@ class YSContext(BaseContext):
     def get_support(self):
         logger.log_function_call("YSContext.get_support")
         text = templates.get("bot", "get_support",
-                             telegram_username = templates.get("vars", "support_username"))
+                             telegram_username = self.telegram_username)
 
         self.send_message(text)
 
     def get_info(self):
         logger.log_function_call("YSContext.get_info")
         text = templates.get("bot", "get_info",
-                             telegram_username = templates.get("vars", "support_username"))
+                             telegram_username = self.telegram_username)
 
         self.send_message(text)
 
@@ -120,7 +121,8 @@ class YSContext(BaseContext):
             user       = self._user,
             product    = product,
             quantity   = quantity,
-            invoice_id = new_invoice.invoice_id
+            invoice_id = new_invoice.invoice_id,
+            message_id = message_id
         )
         new_order.save()
         logger.info(f"Заказ #{new_order.order_id} успешно создан на общую сумму {price_in_rub}р")
@@ -133,7 +135,7 @@ class YSContext(BaseContext):
             "type_of_asset"     : type_of_asset,
             "price_in_asset"    : round(price_in_asset, 2),
             "time_to_pay"       : time_to_pay,
-            "telegram_username" : templates.get("vars", "support_username")
+            "telegram_username" : self.telegram_username
         }
 
         text = templates.get("bot", "set_order", **kwargs)
@@ -148,33 +150,47 @@ class YSContext(BaseContext):
 
         return order if order else None
 
-    def cancel_order(self, message_id = None):
+    def cancel_order(self):
         logger.log_function_call("YSContext.cancel_order")
 
         past_order = self.past_order
-        if past_order:
-            past_order.status = StatusType.CANCELLED
-            past_order.commit()
-            self.crypto_bot.delete_invoice(past_order.invoice_id)
-            self.crypto_bot
-            logger.info(f"Заказ #{past_order.order_id} успешно отменен")
+        if not past_order:
+            return
 
-        if message_id: self.delete_message(message_id)
+        past_order.status = StatusType.CANCELLED
+        past_order.commit()
+        self.crypto_bot.delete_invoice(past_order.invoice_id)
+        logger.info(f"Заказ #{past_order.order_id} успешно отменен")
 
-    def check_payment(self, message_id):
-        logger.log_function_call("YSContext.check_payment")
+        self.edit_message_text(past_order.message_id, templates.get("bot", "cancel_order",
+                                                         order_id = past_order.order_id,
+                                                         telegram_username = self.telegram_username))
+
+    def successful_payment(self):
+        logger.log_function_call("YSContext.successful_payment")
 
         past_order = self.past_order
-        if past_order:
-            self.cancel_order(message_id)
-            return None
+        if not past_order:
+            return
 
-        result = self.crypto_bot.check_invoice_paid(past_order.invoice_id)
+        past_order.status = StatusType.PAID
+        past_order.commit()
+        logger.info(f"Заказ #{past_order.order_id} успешно оплачен: "
+                    f"user_id[{past_order.user_id}] total_amount[{past_order.total_amount}]")
+
+        self.edit_message_text(past_order.message_id, templates.get("bot", "successful_payment",
+                                                         order_id=past_order.order_id,
+                                                         telegram_username = self.telegram_username))
+
+    def check_payment(self):
+        logger.log_function_call("YSContext.check_payment")
+
+        result = self.crypto_bot.check_invoice_paid(33790001)
 
         if result:
-            logger.info("Оплата прошла успешно")
-        else:
-            logger.info("Оплата еще не пришла")
+            self.successful_payment()
+            return
+        self.cancel_order()
 
     def select_asset(self, message_id):
         logger.log_function_call("YSContext.select_asset")
@@ -228,6 +244,16 @@ class YSContext(BaseContext):
         logger.info(f"Успешный ответ на сообщение [\"{text}\"] пользователя [\"{self.user_id}\"].")
         return True
 
+    def choice_update(self, stage, choices, action, action_id):
+        if stage == 1:
+            if self._user.choice:
+                self._user.choice = ""
+        else:
+            if len(choices) >= stage:
+                self._user.choice = "/".join(choices[:-1]) + "/"
+        self._user.choice += f"{action}?{action_id}/"
+        self._user.commit()
+
     def callback_handle(self):
         """Обрабатывает callback-метод пользователя.
 
@@ -242,32 +268,22 @@ class YSContext(BaseContext):
         message_id = query.message.message_id
         cb_data = query.data
         json_data = json.loads(cb_data)
+        action = json_data["action"]
+        action_id = json_data["id"] if "id" in json_data else None
         choices = 0
 
-        if json_data["action"] != "select_order":
-            choices = self._user.choice.split("/")
+        if action != "select_order":
+            choices = self._user.choice.split("/")[:-1]
 
-        match json_data["action"]:
+        match action:
             case "select_order":
-                if self._user.choice:
-                    self._user.choice = None
-                self._user.choice = f"select_order?{json_data['id']}/"
-                self._user.commit()
-
+                self.choice_update(1, choices, action, action_id)
                 self.select_qty(message_id)
             case "select_qty":
-                if len(choices) >= 2:
-                    self._user.choice = "/".join(choices[:-1]) + "/"
-                self._user.choice = self._user.choice + f"select_qty?{json_data['id']}/"
-                self._user.commit()
-
+                self.choice_update(2, choices, action, action_id)
                 self.select_asset(message_id)
             case "select_asset":
-                if len(choices) >= 3:
-                    self._user.choice = "/".join(choices[:-1]) + "/"
-                self._user.choice = self._user.choice + f"select_asset?{json_data['id']}/"
-                self._user.commit()
-
+                self.choice_update(3, choices, action, action_id)
                 self.set_order(message_id)
             case "back_to_product":
                 self.get_product(message_id)
@@ -278,9 +294,9 @@ class YSContext(BaseContext):
             case "select_order_action":
                 match json_data["id"]:
                     case "2":
-                        self.cancel_order(message_id)
+                        self.cancel_order()
                     case "3":
-                        self.check_payment(message_id)
+                        self.check_payment()
             case _:
                 logger.warn(f"Неизвестный callback-метод [\"{query.data}\"].")
                 return False

@@ -114,6 +114,7 @@ class Invoice:
     """Класс для представления инвойса"""
     invoice_id: int
     hash: str
+    status: str
     currency_type: Optional[str] = None
     asset: Optional[str] = None
     amount: Optional[float] = None
@@ -121,7 +122,6 @@ class Invoice:
     bot_invoice_url: Optional[str] = None
     mini_app_invoice_url: Optional[str] = None
     web_app_invoice_url: Optional[str] = None
-    status: Optional[str] = None
     created_at: Optional[str] = None
     allow_comments: Optional[bool] = True
     allow_anonymous: Optional[bool] = True
@@ -250,6 +250,7 @@ class CryptoBotAPI:
                 logger.info(f"Проверка {len(active_ids)} активных инвойсов")
                 updated = self.get_invoices(invoice_ids=','.join(map(str, active_ids)),
                                             status="active")
+
                 if updated:
                     for data in updated:
                         inv = Invoice(**data)
@@ -260,7 +261,7 @@ class CryptoBotAPI:
                             logger.info(f"Инвойс {inv.invoice_id} истек")
 
         # Проверяем каждые 5 минут
-        threading.Thread(target=self._run_scheduler, args=(check_invoices, 300), daemon=True).start()
+        threading.Thread(target=self._run_scheduler, args=(check_invoices, 10), daemon=True).start()
 
     def _run_scheduler(self, task, interval_seconds: int):
         """Запускает задачу по расписанию"""
@@ -608,15 +609,13 @@ class CryptoBotAPI:
         if status:
             params["status"] = status
 
-        return self._execute("getInvoices", params, use_get=True)
+        return self._execute("getInvoices", params, use_get=True)["items"]
 
     def delete_invoice(self, invoice_id: int) -> bool:
         """Удаляет инвойс"""
         params = {"invoice_id": str(invoice_id)}
         result = self._execute("deleteInvoice", params)
-        logger.info(result)
         if result:
-            logger.info("123213213213123213123123123123")
             self.invoice_manager.remove_invoice(invoice_id)
         return bool(result)
 
