@@ -5,7 +5,7 @@ from sqlalchemy import Enum as SQLAlchemyEnum, event
 class StatusType(Enum):
     PENDING = "pending"
     CANCELLED = "cancelled"
-    PAID = "paid"
+    DELIVERED = "delivered"
 
 class Order(Base):
     __tablename__ = 'orders'

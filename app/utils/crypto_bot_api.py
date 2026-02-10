@@ -6,8 +6,9 @@ from dataclasses import dataclass
 import threading
 from ..config import Config
 from . import Logger
+import logging
 
-logger = Logger("CryptoBotAPI")
+logger = Logger("CryptoBotAPI", logging.DEBUG)
 
 @dataclass
 class ExchangeRate:
@@ -113,6 +114,7 @@ class CurrencyCache:
 class Invoice:
     """Класс для представления инвойса"""
     invoice_id: int
+    status: str
     hash: str
     status: str
     currency_type: Optional[str] = None
@@ -312,10 +314,8 @@ class CryptoBotAPI:
                     timeout=10
                 )
 
-            data = response.json()
-            logger.debug(f"Ответ на запрос {method}: {data}")
-
             response.raise_for_status()
+            data = response.json()
 
             # Проверяем ответ API
             if data.get("ok"):
@@ -472,12 +472,6 @@ class CryptoBotAPI:
             from_currency = "USDT"
 
         rate = self.get_exchange_rate(from_currency, to_currency, force_refresh)
-
-        if not rate:
-            rate = self.get_exchange_rate(to_currency, from_currency, force_refresh)
-            if rate:
-                rate.rate = 1 / rate.rate
-
         if not rate:
             logger.error(f"Не удалось получить курс {from_currency}->{to_currency}")
             return None
