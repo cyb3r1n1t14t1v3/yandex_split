@@ -23,7 +23,8 @@ class BaseContext:
         source = update.message or update.callback_query
         self.message = source.message if hasattr(source, 'message') else source
         self.user_id = source.from_user.id
-        self.telegram_username = source.from_user.username
+        username = source.from_user.username
+        self.username = username if username else f"unknown_{self.user_id}"
         self.chat_id = self.message.chat_id
 
         self._user = None
@@ -170,14 +171,16 @@ class BaseContext:
         user = User.query.get(self.user_id)
 
         if user is None:
-            logger.info(f"Создание нового пользователя: user_id[{self.user_id}]")
+
+            logger.info(f"Создание нового пользователя: user_id[{self.user_id}] username[\"{self.username}\"]")
             user = User(
+                username=self.username,
                 user_id=self.user_id,
             )
             try:
                 user.save()
                 logger.info(f"Новый пользователь успешно создан: "
-                            f"user_id[{self.user_id}]")
+                            f"user_id[{self.user_id}] username[\"{self.username}\"]")
             except Exception as e:
                 logger.error(f"Ошибка создания пользователя: {e}")
                 raise

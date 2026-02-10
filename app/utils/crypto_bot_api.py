@@ -257,7 +257,7 @@ class CryptoBotAPI:
                               if inv.status == "active"]
 
             if active_ids:
-                logger.info(f"Проверка {len(active_ids)} активных инвойсов")
+                logger.debug(f"Проверка {len(active_ids)} активных инвойсов")
                 updated = self.get_invoices(invoice_ids=','.join(map(str, active_ids)),
                                             status="active")
 

@@ -4,6 +4,7 @@ from app.models.base_model import *
 class User(Base):
     __tablename__ = 'users'
     user_id = db.Column(BIGINT(unsigned=True), primary_key=True, nullable=False, autoincrement=False)
+    username = db.Column(VARCHAR(32), nullable=False, unique=True)
     choice = db.Column(db.TEXT(), nullable=False, default="")
 
     orders = db.relationship('Order', back_populates='user', lazy='dynamic')

@@ -12,7 +12,7 @@ class YSContext(BaseContext):
         self._create_user()
         self.crypto_bot = CryptoBotAPI(cache_ttl_minutes=templates.get("vars", "cache_ttl_minutes"),
                                        auto_cancel_default_seconds=templates.get("vars", "auto_cancel_default_seconds"))
-        self.telegram_username = templates.get("vars", "support_username")
+        self.support_username = templates.get("vars", "support_username")
 
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -22,7 +22,7 @@ class YSContext(BaseContext):
     def start(self):
         logger.log_function_call("YSContext.start")
         text = templates.get("bot", "start",
-                             telegram_username = self.telegram_username)
+                             support_username = self.support_username)
 
         self.send_message(text = text, reply_markup = self.general_keyboard)
 
@@ -38,14 +38,14 @@ class YSContext(BaseContext):
     def get_support(self):
         logger.log_function_call("YSContext.get_support")
         text = templates.get("bot", "get_support",
-                             telegram_username = self.telegram_username)
+                             support_username = self.support_username)
 
         self.send_message(text)
 
     def get_info(self):
         logger.log_function_call("YSContext.get_info")
         text = templates.get("bot", "get_info",
-                             telegram_username = self.telegram_username)
+                             support_username = self.support_username)
 
         self.send_message(text)
 
@@ -79,7 +79,7 @@ class YSContext(BaseContext):
             text = templates.get("bot", "insufficient_quantity",
                                  quantity = selected_quantity,
                                  available_quantity = product_qty,
-                                 telegram_username = self.telegram_username)
+                                 support_username = self.support_username)
 
             self.edit_message_text(message_id, text, reply_markup=
             self.get_inline_keyboard(["back_to_qty"]))
@@ -139,7 +139,7 @@ class YSContext(BaseContext):
             "type_of_asset"     : type_of_asset,
             "price_in_asset"    : round(price_in_asset, 2),
             "time_to_pay"       : time_to_pay,
-            "telegram_username" : self.telegram_username
+            "support_username" : self.support_username
         }
 
         text = templates.get("bot", "set_order", **kwargs)
@@ -161,7 +161,7 @@ class YSContext(BaseContext):
 
         self.edit_message_text(self.past_order.message_id, templates.get("bot", "cancel_order",
                                                          order_id = self.past_order.order_id,
-                                                         telegram_username = self.telegram_username))
+                                                         support_username = self.support_username))
 
     def successful_payment(self):
         logger.log_function_call("YSContext.successful_payment")
@@ -173,11 +173,13 @@ class YSContext(BaseContext):
         self.past_order.commit()
 
         logger.info(f"Заказ #{self.past_order.order_id} успешно оплачен: "
-                    f"user_id[{self.past_order.user_id}] total_amount[{self.past_order.total_price}]")
+                    f"user_id[{self.past_order.user_id}] "
+                    f"username[\"{self.username}\"]"
+                    f"total_amount[{self.past_order.total_price}]")
 
         self.edit_message_text(self.past_order.message_id, templates.get("bot", "successful_payment",
                                                          order_id=self.past_order.order_id,
-                                                         telegram_username = self.telegram_username))
+                                                         support_username = self.support_username))
 
     def check_payment(self):
         logger.log_function_call("YSContext.check_payment")
@@ -217,10 +219,12 @@ class YSContext(BaseContext):
             case "start":
                 self.start()
             case _:
-                logger.warn(f"Неизвестная команда [\"/{command}\"] от пользователя [\"{self.user_id}\"].")
+                logger.warn(f"Неизвестная команда [\"/{command}\"] "
+                            f"от пользователя [{self.user_id}] с именем [\"{self.username}\"].")
                 return False
 
-        logger.info(f"Успешное выполнение команды [\"/{command}\"] пользователя [\"{self.user_id}\"].")
+        logger.info(f"Успешное выполнение команды [\"/{command}\"] "
+                    f"пользователя [{self.user_id}] с именем [\"{self.username}\"].")
         return True
 
     def text_handle(self):
@@ -245,7 +249,8 @@ class YSContext(BaseContext):
             case _:
                 return False
 
-        logger.info(f"Успешный ответ на сообщение [\"{text}\"] пользователя [\"{self.user_id}\"].")
+        logger.info(f"Успешный ответ на сообщение [\"{text}\"] "
+                    f"пользователя [{self.user_id}] с именем [\"{self.username}\"].")
         return True
 
     def callback_handle(self):
@@ -296,5 +301,6 @@ class YSContext(BaseContext):
             case _:
                 logger.warn(f"Неизвестный callback-метод [\"{query.data}\"].")
                 return False
-        logger.info(f"Успешный ответ на callback-метод [\"{query.data}\"] пользователя [\"{self.user_id}\"].")
+        logger.info(f"Успешный ответ на callback-метод [\"{query.data}\"] "
+                    f"пользователя [{self.user_id}] с именем [\"{self.username}\"].")
         return True
