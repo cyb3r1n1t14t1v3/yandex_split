@@ -4,7 +4,8 @@ from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, I
 from telegram.parsemode import ParseMode
 from telegram.message import Message
 from flask import current_app as app
-from app.utils import Logger
+from app.utils import Logger, keyboard
+from app.models import Product, User, Order, StatusType
 from enum import Enum
 
 logger = Logger("BaseContext")
@@ -19,11 +20,16 @@ class BaseContext:
     def __init__(self, update):
         """Инициализация базового контекста на основе обновления от Telegram."""
         self.update = update
-        self.message = update.message if update.message else update.callback_query.message
+        source = update.message or update.callback_query
+        self.message = source.message if hasattr(source, 'message') else source
+        self.user_id = source.from_user.id
+        username = source.from_user.username
+        self.username = username if username else f"unknown_{self.user_id}"
         self.chat_id = self.message.chat_id
-        self.user_id = self.message.from_user.id
-        self.telegram_username = self.message.from_user.username
-        
+
+        self._user = None
+        self._past_order = None
+
         self._parse_mode = ParseMode.HTML
         self._disable_web_page_preview = True
 
@@ -142,5 +148,72 @@ class BaseContext:
             keyboard.append(bottom_key)
 
         return InlineKeyboardMarkup(keyboard)
+
+    @property
+    def general_keyboard(self):
+        logger.debug(keyboard.general)
+        return self.get_keyboard(keyboard.general)
+
+    def get_inline_keyboard(self, actions: list, urls: dict = None):
+        keyboard.update_inline_keyboard(Product)
+        keys = [key for key in keyboard.inline
+                if key["callback_data"]["action"] in actions]
+
+        logger.debug(keys)
+        return self.get_keyboard(keys, urls)
+
+    def _create_user(self) -> None:
+        """Получает или создаёт пользователя в базе данных."""
+        logger.log_function_call("BaseContext._create_user")
+        user = User.query.get(self.user_id)
+
+        if user is None:
+
+            logger.info(f"Создание нового пользователя: user_id[{self.user_id}] username[\"{self.username}\"]")
+            user = User(
+                username=self.username,
+                user_id=self.user_id,
+            )
+            try:
+                user.save()
+                logger.info(f"Новый пользователь успешно создан: "
+                            f"user_id[{self.user_id}] username[\"{self.username}\"]")
+            except Exception as e:
+                logger.error(f"Ошибка создания пользователя: {e}")
+                raise
+
+        self._user = user
+
+    @property
+    def past_order(self):
+        if not self._past_order:
+            query = Order.query.order_by(Order.order_id.desc())
+            order = query.filter_by(user_id = self._user.user_id,
+                                    status  = StatusType.PENDING).first()
+
+            self._past_order = order
+
+        return self._past_order if self._past_order else None
+
+    @property
+    def _choice(self):
+        choices = self._user.choice.split("/")
+        check_index = lambda index: 0 <= index + 1 < len(choices)
+
+        product_id = int(choices[0].split("?")[1]) if check_index(0) else None
+        qty_id = int(choices[1].split("?")[1]) if check_index(1) else None
+        asset_id = int(choices[2].split("?")[1]) if check_index(2) else None
+
+        return product_id, qty_id, asset_id
+
+    def choice_update(self, stage, choices, action, action_id):
+        if stage == 1:
+            if self._user.choice:
+                self._user.choice = ""
+        else:
+            if len(choices) >= stage:
+                self._user.choice = "/".join(choices[:-1]) + "/"
+        self._user.choice += f"{action}?{action_id}/"
+        self._user.commit()
 
 __all__ = ['BaseContext']

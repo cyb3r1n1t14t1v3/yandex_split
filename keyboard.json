@@ -69,14 +69,10 @@
       }
     },
     {
-      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽ | В наличии: {quantity_label}шт",
       "callback_data" : {
         "action" : "select_order",
         "id" : "1"
-      },
-      "addition_data" : {
-        "limit" : "",
-        "price" : ""
       },
       "position" : {
         "row" : 1,
@@ -84,14 +80,10 @@
       }
     },
     {
-      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽ | В наличии: {quantity_label}шт",
       "callback_data" : {
         "action" : "select_order",
         "id" : "2"
-      },
-      "addition_data" : {
-        "limit" : "",
-        "price" : ""
       },
       "position" : {
         "row" : 2,
@@ -99,14 +91,10 @@
       }
     },
     {
-      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽ | В наличии: {quantity_label}шт",
       "callback_data" : {
         "action" : "select_order",
         "id" : "3"
-      },
-      "addition_data" : {
-        "limit" : "",
-        "price" : ""
       },
       "position" : {
         "row" : 3,
@@ -114,14 +102,10 @@
       }
     },
     {
-      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽ | В наличии: {quantity_label}шт",
       "callback_data" : {
         "action" : "select_order",
         "id" : "4"
-      },
-      "addition_data" : {
-        "limit" : "",
-        "price" : ""
       },
       "position" : {
         "row" : 4,
@@ -129,14 +113,10 @@
       }
     },
     {
-      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽",
+      "text" : "Лимит: {limit_label}₽ | Цена: {price_label}₽ | В наличии: {quantity_label}шт",
       "callback_data" : {
         "action" : "select_order",
         "id" : "5"
-      },
-      "addition_data" : {
-        "limit" : "",
-        "price" : ""
       },
       "position" : {
         "row" : 5,

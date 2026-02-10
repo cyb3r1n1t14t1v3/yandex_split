@@ -116,14 +116,25 @@ class Invoice:
     invoice_id: int
     status: str
     hash: str
+    status: str
+    currency_type: Optional[str] = None
     asset: Optional[str] = None
     amount: Optional[float] = None
     pay_url: Optional[str] = None
-    description: Optional[str] = None
-    created_at: Optional[datetime] = None
-    expiration_date: Optional[datetime] = None
-    paid_at: Optional[datetime] = None
+    bot_invoice_url: Optional[str] = None
+    mini_app_invoice_url: Optional[str] = None
+    web_app_invoice_url: Optional[str] = None
+    created_at: Optional[str] = None
+    allow_comments: Optional[bool] = True
+    allow_anonymous: Optional[bool] = True
+    paid_at: Optional[str] = None
+    paid_usd_rate: Optional[str] = None
+    paid_anonymously: Optional[str] = None
+    paid_asset: Optional[str] = None
     paid_amount: Optional[float] = None
+    fee_asset: Optional[str] = None
+    fee_amount: Optional[float] = None
+    fee_in_usd: Optional[float] = None
 
     # Добавьте другие поля по необходимости
 
@@ -132,13 +143,8 @@ class Invoice:
             self.amount = float(self.amount)
         if self.paid_amount:
             self.paid_amount = float(self.paid_amount)
-        if self.created_at and isinstance(self.created_at, str):
-            self.created_at = datetime.fromisoformat(self.created_at)
-        if self.expiration_date and isinstance(self.expiration_date, str):
-            self.expiration_date = datetime.fromisoformat(self.expiration_date)
-        if self.paid_at and isinstance(self.paid_at, str):
-            self.paid_at = datetime.fromisoformat(self.paid_at)
-
+        if self.fee_in_usd:
+            self.fee_in_usd = float(self.fee_in_usd)
 
 class InvoiceManager:
     """Менеджер для отслеживания и отмены инвойсов по времени"""
@@ -204,21 +210,19 @@ class InvoiceManager:
                 if not update_from_api:
                     return invoice
 
-                # Обновляем из API
-                updated_data = self.api.get_invoices(invoice_ids=str(invoice_id))
-                if updated_data and updated_data[0]:
-                    updated_invoice = Invoice(**updated_data[0])
-                    self.invoices[invoice_id] = updated_invoice
-                    return updated_invoice
-
-                return invoice
+            # Обновляем из API
+            updated_data = self.api.get_invoices(invoice_ids=str(invoice_id))
+            if updated_data and updated_data[0]:
+                updated_invoice = Invoice(**updated_data[0])
+                self.invoices[invoice_id] = updated_invoice
+                return updated_invoice
 
         return None
 
-    def is_paid(self, invoice_id: int) -> bool:
+    def is_paid(self, invoice_id: int) -> bool or None:
         """Проверяет, оплачен ли инвойс"""
         invoice = self.check_invoice_status(invoice_id)
-        return invoice.status == "paid" if invoice else False
+        return invoice.status == "paid" if invoice else None
 
     def remove_invoice(self, invoice_id: int):
         """Удаляет инвойс из менеджера"""
@@ -255,9 +259,10 @@ class CryptoBotAPI:
                               if inv.status == "active"]
 
             if active_ids:
-                logger.info(f"Проверка {len(active_ids)} активных инвойсов")
+                logger.debug(f"Проверка {len(active_ids)} активных инвойсов")
                 updated = self.get_invoices(invoice_ids=','.join(map(str, active_ids)),
                                             status="active")
+
                 if updated:
                     for data in updated:
                         inv = Invoice(**data)
@@ -608,17 +613,19 @@ class CryptoBotAPI:
         if status:
             params["status"] = status
 
-        return self._execute("getInvoices", params, use_get=True)
+        return self._execute("getInvoices", params, use_get=True)["items"]
 
     def delete_invoice(self, invoice_id: int) -> bool:
         """Удаляет инвойс"""
-        params = {"invoice_id": str(invoice_id)}
-        result = self._execute("deleteInvoice", params)
-        if result:
-            self.invoice_manager.remove_invoice(invoice_id)
-        return bool(result)
+        if self.invoice_manager.invoices.get(invoice_id):
+            params = {"invoice_id": str(invoice_id)}
+            result = self._execute("deleteInvoice", params)
+            if result:
+                self.invoice_manager.remove_invoice(invoice_id)
+            return bool(result)
+        return True
 
-    def check_invoice_paid(self, invoice_id: int) -> bool:
+    def check_invoice_paid(self, invoice_id: int) -> bool or None:
         """Проверяет оплату инвойса"""
         return self.invoice_manager.is_paid(invoice_id)
 
